@@ -51,7 +51,7 @@ void modfd(int epoll_fd, int fd, int ev)
     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event);
 }
 
-std::string path = "/home/wlle/my_file/codes";
+std::string path = "/home/wlle/my_file/codes/";
 
 buffer::buffer(int len)
     :last_index(0), now_index(0), buffer_len(len), buffers(new char[len])
@@ -87,23 +87,30 @@ void client::init(int fd2, const sockaddr_in& addr2)
 
     reader.init(xin_xi);
     writer.init(xin_xi);
+
+    int reuse = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void*)&reuse, sizeof(reuse));
+
+    ++link_nums;
 }
 
 void client::run()
 {
     if (to_read())
     {
-        modfd(epoll_fd, xin_xi->fd, EPOLLIN);
-        return;
+//        modfd(epoll_fd, xin_xi->fd, EPOLLIN);
+        // return;
     }
+
+    reader.process();
 
     // 生成响应
     bool write_ret = to_write();
     if (!write_ret)
     {
-        close_link();
+//        close_link();
     }
-    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
+//    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
 
     std::cout << " 文件路径 : " << xin_xi->file_path
               << "\n 请求文件名 : " << xin_xi->file_name
@@ -117,7 +124,7 @@ void client::close_link()
 {
     if (xin_xi->fd != -1)
     {
-        removefd(epoll_fd, xin_xi->fd);
+//        removefd(epoll_fd, xin_xi->fd);
         xin_xi->fd = -1;
         --link_nums; // 关闭一个连接，将客户总数量-1
     }
@@ -154,6 +161,7 @@ bool client::m_read::read()
     int len = recv(mas->fd, read_buffer.buffers + read_buffer.last_index, read_buffer.buffer_len - read_buffer.last_index, 0);
     if(len < 0)
     {
+        std::cerr << "len : " << len;
         std::cerr << " read error \n";
         return false;
     }
@@ -165,6 +173,7 @@ bool client::m_read::read()
 
     read_buffer.last_index += len;
     mas->m_content_length = len;
+
     return true;
 }
 
@@ -177,8 +186,6 @@ bool client::m_read::process()
     while(text != "error" && read_buffer.now_index <= read_buffer.last_index)
     {
         text = get_line();
-        std::cout << "text : " << text << std::endl;
-
         switch(check_state)
         {
             case CHECK_STATE_REQUESTLINE:

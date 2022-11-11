@@ -4,15 +4,26 @@
 #include "thread_pool.h"
 #include <unistd.h>
 #include "http_client.h"
+#include <signal.h>
 
 extern void addfd(int epollfd, int fd, bool one_shot);
 extern void removefd(int epollfd, int fd);
+
+void addsig(int sig, void(handler)(int))
+{
+    struct sigaction sa;
+    sa.sa_handler = handler;
+    sigfillset(&sa.sa_mask);
+    sigaction(sig, &sa, NULL) != -1;
+}
 
 int main()
 {
     const int MAX_CLIENT = 8;
 
     int listen_fd = socket(PF_INET, SOCK_STREAM, 0);
+
+    addsig(SIGPIPE, SIG_IGN);
 
     // 端口复用
     int reuse = 1;
@@ -30,16 +41,11 @@ int main()
     }
 
     // 监听
-    ret = listen(listen_fd, 5);
+    ret = listen(listen_fd, MAX_CLIENT);
     if(ret == -1)
     {
         std::cerr << " error \n";
     }
-
-
-    sockaddr_in addr2;
-    socklen_t size = sizeof(addr2);
-    int fd = accept(listen_fd, (sockaddr*)&addr2, &size);
 
     // 用户数组
     client cts[MAX_CLIENT];
@@ -48,20 +54,30 @@ int main()
     thread_pool<client>* pool;
     pool = new thread_pool<client>;
 
+    // epoll
     int epoll_fd = epoll_create(MAX_CLIENT);
     epoll_event events[MAX_CLIENT];
 
-    addfd(epoll_fd, fd, false);
+    addfd(epoll_fd, listen_fd, false);
     client::epoll_fd = epoll_fd;
+
+    // client ct;
+    // sockaddr_in addr2;
+    // socklen_t size = sizeof(addr2);
+    // int fd = accept(listen_fd, (sockaddr*)&addr2, &size);
+
+    // ct.init(fd, addr);
+    // ct.run();
+
 
     while (true)
     {
 
         int number = epoll_wait(epoll_fd, events, MAX_CLIENT, -1);
 
-        if ((number < 0) && (errno != EINTR))
+        if (number < 0)
         {
-            printf("epoll failure\n");
+            std::cerr << "epoll failure\n";
             break;
         }
 
@@ -73,13 +89,13 @@ int main()
             if (sockfd == listen_fd)
             {
 
-                struct sockaddr_in client_address;
+                sockaddr_in client_address;
                 socklen_t client_addrlength = sizeof(client_address);
-                int fd = accept(listen_fd, (struct sockaddr *)&client_address, &client_addrlength);
+                int fd = accept(listen_fd, (sockaddr *)&client_address, &client_addrlength);
 
                 if (fd < 0)
                 {
-                    printf("errno is: %d\n", errno);
+                    std::cerr << " error \n";
                     continue;
                 }
 
@@ -89,10 +105,10 @@ int main()
                     continue;
                 }
                 cts[fd].init(fd, client_address);
+                addfd(epoll_fd, fd, true);
             }
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-
                 cts[sockfd].close_link();
             }
             else if (events[i].events & EPOLLIN)
@@ -119,8 +135,10 @@ int main()
     }
 
 
+
     close(epoll_fd);
     close(listen_fd);
+    delete pool;
 
     return 0;
 }
