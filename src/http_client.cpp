@@ -51,7 +51,7 @@ void modfd(int epoll_fd, int fd, int ev)
     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event);
 }
 
-std::string path = "/home/wlle/";
+std::string path = "/home/wlle/my_file/codes";
 
 buffer::buffer(int len)
     :last_index(0), now_index(0), buffer_len(len), buffers(new char[len])

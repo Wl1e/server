@@ -1,9 +1,9 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include "include/thread_pool.h"
+#include "thread_pool.h"
 #include <unistd.h>
-#include "include/http_client.h"
+#include "http_client.h"
 
 extern void addfd(int epollfd, int fd, bool one_shot);
 extern void removefd(int epollfd, int fd);
@@ -46,7 +46,7 @@ int main()
 
     // 线程池
     thread_pool<client>* pool;
-    pool = new thread_pool<client>();
+    pool = new thread_pool<client>;
 
     int epoll_fd = epoll_create(MAX_CLIENT);
     epoll_event events[MAX_CLIENT];
