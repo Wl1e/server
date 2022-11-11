@@ -2,6 +2,7 @@
 #define _HTTP_CLIENT_H_
 
 #include <arpa/inet.h>
+#include <sys/epoll.h>
 #include <string>
 
 // 缓冲区
@@ -44,6 +45,9 @@ public:
 private:
     int fd;
     sockaddr_in addr;
+
+public:
+    bool to_read();
 
 private:
     class m_read
@@ -109,6 +113,9 @@ private:
         };
     };
 
+public:
+    bool to_write();
+
 private:
     class m_write
     {
@@ -152,6 +159,10 @@ private:
     client::m_write writer;
 
     massage* xin_xi;
+
+public:
+    static int epoll_fd;
+    static int link_nums;
 };
 
 #endif

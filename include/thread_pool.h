@@ -12,7 +12,7 @@ class thread_pool
     const int POOL_LEN;
 
 public:
-    thread_pool(int = 8);
+    thread_pool(int = 8, int = 1000);
     ~thread_pool();
 
 private:
@@ -21,6 +21,7 @@ private:
 
     // 请求队列
     std::list<T*> req_list;
+    int req_size;
 
     // 线程锁
     locks list_lock;

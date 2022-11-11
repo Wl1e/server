@@ -3,8 +3,8 @@
 #include <iostream>
 
 template<typename T>
-thread_pool<T>::thread_pool(int nums)
-    : POOL_LEN(nums), thread_status(false), threads(nullptr)
+thread_pool<T>::thread_pool(int nums, int max_req)
+    : POOL_LEN(nums), thread_status(false), threads(nullptr), req_size(max_req)
 {
 
     if (POOL_LEN <= 4)
@@ -41,6 +41,11 @@ template<typename T>
 bool thread_pool<T>::add_work(T* work)
 {
     list_lock.lock();
+    if (req_list.size() > req_size)
+    {
+        list_lock.unlock();
+        return false;
+    }
     req_list.push_back(work);
     list_sem.post();
     list_lock.unlock();

@@ -10,6 +10,47 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+// 设置fd为非阻塞
+int setnonblocking(int fd)
+{
+    int old_option = fcntl(fd, F_GETFL);
+    int new_option = old_option | O_NONBLOCK;
+    fcntl(fd, F_SETFL, new_option);
+    return old_option;
+}
+
+// 向epoll中添加需要监听的文件描述符
+void addfd(int epoll_fd, int fd, bool one_shot)
+{
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = EPOLLIN | EPOLLRDHUP;
+    if (one_shot)
+    {
+        // 防止同一个通信被不同的线程处理
+        event.events |= EPOLLONESHOT;
+    }
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event);
+    // 设置文件描述符非阻塞
+    setnonblocking(fd);
+}
+
+// 从epoll中移除监听的文件描述符
+void removefd(int epoll_fd, int fd)
+{
+    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, 0);
+    close(fd);
+}
+
+// 修改文件描述符，重置socket上的EPOLLONESHOT事件，以确保下一次可读时，EPOLLIN事件能被触发
+void modfd(int epoll_fd, int fd, int ev)
+{
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = ev | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event);
+}
+
 std::string path = "/home/wlle/";
 
 buffer::buffer(int len)
@@ -31,6 +72,9 @@ client::client() {}
 
 client::~client() {}
 
+int client::epoll_fd = -1;
+int client::link_nums = 0;
+
 void client::init(int fd2, const sockaddr_in& addr2)
 {
 
@@ -47,17 +91,19 @@ void client::init(int fd2, const sockaddr_in& addr2)
 
 void client::run()
 {
-    if(!reader.read())
+    if (to_read())
     {
-        std::cerr << " 读取信息时出错 \n";
+        modfd(epoll_fd, xin_xi->fd, EPOLLIN);
         return;
     }
 
-    if(!reader.process())
+    // 生成响应
+    bool write_ret = to_write();
+    if (!write_ret)
     {
-        std::cerr << " 处理请求时出错 \n";
-        return;
+        close_link();
     }
+    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
 
     std::cout << " 文件路径 : " << xin_xi->file_path
               << "\n 请求文件名 : " << xin_xi->file_name
@@ -65,15 +111,23 @@ void client::run()
               << "\n HTTP协议版本号 : " << xin_xi->m_version
               << "\n 请求长度 : " << xin_xi->m_content_length
               << std::endl;
-    
-    if(!writer.process())
-    {
-        std::cerr << " 写失败 \n";
-        return;
-    }
-
 }
 
+void client::close_link()
+{
+    if (xin_xi->fd != -1)
+    {
+        removefd(epoll_fd, xin_xi->fd);
+        xin_xi->fd = -1;
+        --link_nums; // 关闭一个连接，将客户总数量-1
+    }
+}
+
+
+bool client::to_read()
+{
+    return reader.read();
+}
 
 /*-----------------------------------*/
 /*  read    */
@@ -268,6 +322,12 @@ bool client::m_read::process_tou(std::string text)
 bool client::m_read::process_ti(std::string)
 {
     return true;
+}
+
+
+bool client::to_write()
+{
+    return writer.process();
 }
 
 /*----------------------------------------*/
