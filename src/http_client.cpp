@@ -100,7 +100,6 @@ void client::run()
     reader.process();
     if (xin_xi->file_name == "")
     {
-        std::cout << " i am read " << std::endl;
         chfd(epoll_fd, xin_xi->fd, EPOLLIN);
         return;
     }
@@ -281,7 +280,14 @@ bool client::m_read::process_hang(std::string text)
     lhs = std::find_if_not(text.begin() + lhs + 1, text.end(), func) - text.begin();
 
     if(text[lhs] == '/')
+    {
+        // 在写html的form时, 前端提交回来的数据是/?file=文件名, 跟着改一下
+        if(text[lhs + 1] == '?')
+            lhs = std::find_if(text.begin() + lhs + 1, text.end(), [](const char& a){ return a == '='; }) - text.begin();
         mas->file_name = text.substr(lhs + 1, rhs - lhs - 1);
+
+
+    }
     else
         return false;
 
