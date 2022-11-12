@@ -114,12 +114,12 @@ void client::run()
     }
     chfd(epoll_fd, xin_xi->fd, EPOLLOUT);
 
-    std::cout << " 文件路径 : " << xin_xi->file_path
-              << "\n 请求文件名 : " << xin_xi->file_name
-              << "\n 通讯主机IP及端口 : " << xin_xi->m_host
-              << "\n HTTP协议版本号 : " << xin_xi->m_version
-              << "\n 请求长度 : " << xin_xi->m_content_length
-              << std::endl;
+    // std::cout << " 文件路径 : " << xin_xi->file_path
+    //           << "\n 请求文件名 : " << xin_xi->file_name
+    //           << "\n 通讯主机IP及端口 : " << xin_xi->m_host
+    //           << "\n HTTP协议版本号 : " << xin_xi->m_version
+    //           << "\n 请求长度 : " << xin_xi->m_content_length
+    //           << std::endl;
 }
 
 void client::close_link()
@@ -447,7 +447,8 @@ bool client::m_write::start_write()
 
 bool client::m_write::write_to_client()
 {
-    if(write(mas->fd, write_buffer.buffers, write_buffer.last_index) <= 0)
+    int i = send(mas->fd, write_buffer.buffers, write_buffer.last_index, 0);
+    if(i <= 0)
     {
         file_status = " 往缓冲区写数据失败 ";
         return false;
@@ -470,6 +471,10 @@ bool client::m_write::write_to_buffer(const std::string& hang)
     {
         file_status = " 往缓冲区写数据失败 ";
         return false;
+    }
+    for(int i = 0; i != hang.size(); ++i)
+    {
+        write_buffer.buffers[write_buffer.last_index + i] = hang[i];
     }
     write_buffer.last_index += hang.size();
 

@@ -1,10 +1,10 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include "thread_pool.hpp"
 #include <unistd.h>
 #include "http_client.h"
 #include <signal.h>
+#include "thread_pool.hpp"
 
 extern void addfd(int epollfd, int fd, bool one_shot);
 extern void removefd(int epollfd, int fd);
@@ -48,7 +48,7 @@ int main()
     }
 
     // 用户数组
-    client cts[MAX_CLIENT];
+    client cts[MAX_CLIENT + 3];
 
     // 线程池
     thread_pool<client>* pool;
@@ -56,7 +56,7 @@ int main()
 
     // epoll
     int epoll_fd = epoll_create(MAX_CLIENT);
-    epoll_event events[MAX_CLIENT];
+    epoll_event events[MAX_CLIENT + 3];
 
     addfd(epoll_fd, listen_fd, false);
     client::epoll_fd = epoll_fd;
@@ -83,7 +83,6 @@ int main()
 
         for (int i = 0; i < number; i++)
         {
-
             int sockfd = events[i].data.fd;
 
             if (sockfd == listen_fd)
@@ -104,6 +103,13 @@ int main()
                     close(fd);
                     continue;
                 }
+
+                std::cout << " 用户接入 -> "
+                          << " fd : " << fd
+                          << " IP : " << client_address.sin_addr.s_addr
+                          << " 端口 : " << client_address.sin_port
+                          << std::endl;
+
                 cts[fd].init(fd, client_address);
                 addfd(epoll_fd, fd, true);
             }
