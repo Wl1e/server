@@ -1,4 +1,4 @@
-#include "../include/http_client.h"
+#include "http_client.h"
 
 #include <iostream>
 #include <algorithm>
@@ -96,21 +96,19 @@ void client::init(int fd2, const sockaddr_in& addr2)
 
 void client::run()
 {
-    if (to_read())
+    if (reader.process())
     {
-//        modfd(epoll_fd, xin_xi->fd, EPOLLIN);
-        // return;
+       modfd(epoll_fd, xin_xi->fd, EPOLLIN);
+       return;
     }
-
-    reader.process();
 
     // 生成响应
-    bool write_ret = to_write();
+    bool write_ret = writer.process();
     if (!write_ret)
     {
-//        close_link();
+       close_link();
     }
-//    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
+    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
 
     std::cout << " 文件路径 : " << xin_xi->file_path
               << "\n 请求文件名 : " << xin_xi->file_name
@@ -334,7 +332,7 @@ bool client::m_read::process_ti(std::string)
 
 bool client::to_write()
 {
-    return writer.process();
+    return writer.write_to_client();
 }
 
 /*----------------------------------------*/
@@ -443,6 +441,16 @@ bool client::m_write::start_write()
     return true;
 }
 
+bool client::m_write::write_to_client()
+{
+    if(write(mas->fd, write_buffer.buffers, write_buffer.last_index) <= 0)
+    {
+        file_status = " 往缓冲区写数据失败 ";
+        return false;
+    }
+    return true;
+}
+
 bool client::m_write::write_to_buffer(const std::string& hang)
 {
     if(write_buffer.last_index > write_buffer.buffer_len)
@@ -452,12 +460,6 @@ bool client::m_write::write_to_buffer(const std::string& hang)
     }
 
     if(hang.size() >= (write_buffer.buffer_len - write_buffer.last_index - 1))
-    {
-        file_status = " 往缓冲区写数据失败 ";
-        return false;
-    }
-
-    if(write(mas->fd, hang.data(), hang.size()) <= 0)
     {
         file_status = " 往缓冲区写数据失败 ";
         return false;

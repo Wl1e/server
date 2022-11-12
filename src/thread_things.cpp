@@ -1,4 +1,4 @@
-#include "../include/thread_things.h"
+#include "thread_things.h"
 
         /*  locks   */
 locks::locks()

@@ -134,6 +134,8 @@ private:
 
         bool process();
 
+        bool write_to_client();
+
     private:
         bool start_write();
 
