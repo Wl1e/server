@@ -89,8 +89,8 @@ bool thread_pool<T>::add_work(T* work)
         return false;
     }
     req_list.push_back(work);
-    list_sem.post();
     list_lock.unlock();
+    list_sem.post();
 
     return true;
 }

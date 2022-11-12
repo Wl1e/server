@@ -36,14 +36,14 @@ void addfd(int epoll_fd, int fd, bool one_shot)
 }
 
 // 从epoll中移除监听的文件描述符
-void removefd(int epoll_fd, int fd)
+void rmfd(int epoll_fd, int fd)
 {
     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, 0);
     close(fd);
 }
 
 // 修改文件描述符，重置socket上的EPOLLONESHOT事件，以确保下一次可读时，EPOLLIN事件能被触发
-void modfd(int epoll_fd, int fd, int ev)
+void chfd(int epoll_fd, int fd, int ev)
 {
     epoll_event event;
     event.data.fd = fd;
@@ -82,6 +82,7 @@ void client::init(int fd2, const sockaddr_in& addr2)
     addr = addr2;
 
     xin_xi = new massage();
+    xin_xi->file_name = "";
     xin_xi->file_path = path;
     xin_xi->fd = fd;
 
@@ -96,19 +97,22 @@ void client::init(int fd2, const sockaddr_in& addr2)
 
 void client::run()
 {
-    if (reader.process())
+    reader.process();
+    if (xin_xi->file_name == "")
     {
-       modfd(epoll_fd, xin_xi->fd, EPOLLIN);
-       return;
+        std::cout << " i am read " << std::endl;
+        chfd(epoll_fd, xin_xi->fd, EPOLLIN);
+        return;
     }
 
     // 生成响应
     bool write_ret = writer.process();
     if (!write_ret)
     {
-       close_link();
+        std::cerr << " 处理失败 \n" << std::endl;
+        close_link();
     }
-    modfd(epoll_fd, xin_xi->fd, EPOLLOUT);
+    chfd(epoll_fd, xin_xi->fd, EPOLLOUT);
 
     std::cout << " 文件路径 : " << xin_xi->file_path
               << "\n 请求文件名 : " << xin_xi->file_name
@@ -179,7 +183,7 @@ bool client::m_read::read()
 bool client::m_read::process()
 {
     bool ret = true;
-    std::string text;
+    std::string text = "";
 
     while(text != "error" && read_buffer.now_index <= read_buffer.last_index)
     {
@@ -448,6 +452,9 @@ bool client::m_write::write_to_client()
         file_status = " 往缓冲区写数据失败 ";
         return false;
     }
+
+    chfd(epoll_fd, mas->fd, EPOLLIN);
+
     return true;
 }
 

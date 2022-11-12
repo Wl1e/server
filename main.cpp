@@ -125,7 +125,6 @@ int main()
             }
             else if (events[i].events & EPOLLOUT)
             {
-
                 if (!cts[sockfd].to_write())
                 {
                     cts[sockfd].close_link();
