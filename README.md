@@ -9,12 +9,11 @@
 include // 里面是头文件
 
  - `thread_things.h` // 线程锁, 信号量  
- - `thread_pool.h` // 线程池  
+ - `thread_pool.hpp` // 线程池及实现  
  - `http_client.h` // 与用户的进行数据交换
 
 src // 实现
 
  - `thread_things.cpp`  
- - `thread_pool.cpp`
  - `http_client.cpp`
 
